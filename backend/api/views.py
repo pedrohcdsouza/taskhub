@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from api.services import get_task_list, create_task, edit_task
+from api.services import get_task_list, create_task, edit_task, delete_task
 
 def task_list(request):
 
@@ -49,6 +49,22 @@ def task_edit(request):
                 }, status=200)
             
         return JsonResponse({'error': 'Invalid data'}, status=400)
+
+def task_delete(request):
+
+    if request.method == 'POST':
+
+        id = request.POST.get('id')
+
+        if id:
+
+            deleted = delete_task(id)
+
+            if deleted:
+
+                return JsonResponse({'message': 'Task deleted successfully'}, status=200)
+            
+            return JsonResponse({'error': 'Task not found'}, status=404)
 
 
 

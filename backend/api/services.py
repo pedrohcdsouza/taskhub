@@ -23,5 +23,18 @@ def edit_task(task_id, title, datetime):
         return task
     
     except Task.DoesNotExist:
-        
+
         return None
+
+def delete_task(task_id):
+
+    try:
+
+        task = Task.objects.get(id=task_id)
+        task.delete()
+        
+        return True
+
+    except:
+
+        return False
