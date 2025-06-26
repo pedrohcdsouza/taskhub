@@ -8,5 +8,20 @@ def create_task(title, datetime):
 
     task = Task(title=title, datetime=datetime)
     task.save()
-    
+
     return task
+
+def edit_task(task_id, title, datetime):
+    
+    try:
+
+        task = Task.objects.get(id=task_id)
+        task.title = title
+        task.datetime = datetime
+        task.save()
+
+        return task
+    
+    except Task.DoesNotExist:
+        
+        return None
