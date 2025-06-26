@@ -1,3 +1,6 @@
 from django.db import models
 
-# Create your models here.
+class Task(models.Model):
+
+    title = models.Charfield(max_length=200, unique=True)
+    datetime = models.DateTimeField()
