@@ -1,0 +1,78 @@
+/* TaskHub.css */
+.page {
+  background-color: black;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.logo {
+  color: white;
+  font-size: 36px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+.container {
+  background-color: #222;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.addButton {
+  background-color: green;
+  color: white;
+  font-size: 28px;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+.inputContainer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.input {
+  flex: 1;
+  padding: 8px;
+  font-size: 16px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  outline: none;
+}
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.taskBox {
+  background-color: #333;
+  color: white;
+  padding: 12px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.taskText {
+  flex: 1;
+}
+.icons {
+  display: flex;
+  gap: 12px;
+  margin-left: 12px;
+}
+.iconButton {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+.taskTime {
+  color: #aaa;
+  font-size: 14px;
+  margin-left: 8px;
+}
