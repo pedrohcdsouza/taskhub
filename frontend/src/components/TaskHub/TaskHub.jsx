@@ -1,26 +1,32 @@
 import React, { useState, useEffect } from "react";
+import "./TaskHub.css";
+import { getCookie, toUTCString, formatDatetime } from "../utils";
 
 export default function TaskHub() {
+  // State for tasks, form, and loading
   const [tasks, setTasks] = useState([]);
   const [showInput, setShowInput] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDatetime, setNewTaskDatetime] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null);
 
-useEffect(() => {
-  function fetchTasks() {
-    fetch("http://localhost:8000/api/tasklist/")
-      .then((res) => res.json())
-      .then((data) => setTasks(data))
-      .catch((err) => console.error("Erro ao buscar tasks:", err));
-  }
+  useEffect(() => {
+    // Fetch tasks from backend
+    function fetchTasks() {
+      fetch("http://localhost:8000/api/tasklist/")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.tasks) setTasks(data.tasks);
+          else setTasks([]);
+        })
+        .catch((err) => console.error("Erro ao buscar tasks:", err));
+    }
 
-  fetchTasks(); 
-
-  const intervalId = setInterval(fetchTasks, 5000);
-
-  return () => clearInterval(intervalId);
-}, []);
-
+    fetchTasks();
+    const intervalId = setInterval(fetchTasks, 5000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   function handleAddClick() {
     setShowInput(true);
@@ -29,6 +35,40 @@ useEffect(() => {
   function handleCancel() {
     setShowInput(false);
     setNewTaskTitle("");
+    setNewTaskDatetime("");
+  }
+
+  function handleEdit(task) {
+    setShowInput(true);
+    setNewTaskTitle(task.title);
+    setNewTaskDatetime(task.datetime ? task.datetime.slice(0, 16) : "");
+    setEditingTaskId(task.id);
+  }
+
+  function handleDelete(taskId) {
+    if (loading) return; // Prevent multiple deletes
+    setLoading(true);
+    fetch("http://localhost:8000/api/taskdelete/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      credentials: "include",
+      body: JSON.stringify({ id: taskId }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao deletar");
+        return res.json();
+      })
+      .then(() => {
+        setTasks((oldTasks) => oldTasks.filter((t) => t.id !== taskId));
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Erro ao deletar a task");
+      })
+      .finally(() => setLoading(false));
   }
 
   function handleSave() {
@@ -36,67 +76,117 @@ useEffect(() => {
       alert("Digite um título para a task");
       return;
     }
+    if (!newTaskDatetime) {
+      alert("Selecione data e hora para a task");
+      return;
+    }
 
     setLoading(true);
-    fetch("http://localhost:8000/api/taskcreate/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ title: newTaskTitle.trim() }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro no POST");
-        return res.json();
+    let datetime = newTaskDatetime;
+    if (datetime && datetime.length === 16) {
+      datetime = toUTCString(datetime); // Convert local datetime to UTC ISO string
+    }
+    if (editingTaskId) {
+      // Edit task
+      fetch("http://localhost:8000/api/taskedit/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        credentials: "include",
+        body: JSON.stringify({ id: editingTaskId, title: newTaskTitle.trim(), datetime }),
       })
-      .then((newTask) => {
-        setTasks((oldTasks) => [...oldTasks, newTask]);
-        setShowInput(false);
-        setNewTaskTitle("");
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao editar");
+          return res.json();
+        })
+        .then((updatedTask) => {
+          setTasks((oldTasks) => oldTasks.map((t) => t.id === updatedTask.id ? updatedTask : t));
+          setShowInput(false);
+          setNewTaskTitle("");
+          setNewTaskDatetime("");
+          setEditingTaskId(null);
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Erro ao editar a task");
+        })
+        .finally(() => setLoading(false));
+    } else {
+      // Create task
+      fetch("http://localhost:8000/api/taskcreate/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        credentials: "include",
+        body: JSON.stringify({ title: newTaskTitle.trim(), datetime }),
       })
-      .catch((err) => {
-        console.error(err);
-        alert("Erro ao salvar a task");
-      })
-      .finally(() => setLoading(false));
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro no POST");
+          return res.json();
+        })
+        .then((newTask) => {
+          setTasks((oldTasks) => [...oldTasks, newTask]);
+          setShowInput(false);
+          setNewTaskTitle("");
+          setNewTaskDatetime("");
+        })
+        .catch((err) => {
+          console.error(err);
+          alert("Erro ao salvar a task");
+        })
+        .finally(() => setLoading(false));
+    }
   }
 
   return (
-    <div style={styles.page}>
-      <h1 style={styles.logo}>TaskHub</h1>
-      <div style={styles.container}>
+    <div className="page">
+      <h1 className="logo">TaskHub</h1>
+      <div className="container">
         {!showInput && (
-          <button style={styles.addButton} onClick={handleAddClick}>
+          <button className="addButton" onClick={handleAddClick}>
             +
           </button>
         )}
 
         {showInput && (
-          <div style={styles.inputContainer}>
+          <div className="inputContainer">
             <input
               autoFocus
               type="text"
               placeholder="Nova task"
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
-              style={styles.input}
+              className="input"
               disabled={loading}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSave();
-                if (e.key === "Escape") handleCancel();
+                if (e.key === "Escape") { handleCancel(); setEditingTaskId(null); }
               }}
             />
+            <input
+              type="datetime-local"
+              value={newTaskDatetime}
+              onChange={(e) => setNewTaskDatetime(e.target.value)}
+              className="input"
+              disabled={loading}
+            />
             <button
-              style={{ ...styles.iconButton, color: "green" }}
+              className="iconButton"
+              style={{ color: "green" }}
               onClick={handleSave}
               disabled={loading}
-              title="Salvar"
+              title={editingTaskId ? "Salvar edição" : "Salvar"}
             >
               ✔️
             </button>
             <button
-              style={{ ...styles.iconButton, color: "red" }}
-              onClick={handleCancel}
+              className="iconButton"
+              style={{ color: "red" }}
+              onClick={() => { handleCancel(); setEditingTaskId(null); }}
               disabled={loading}
               title="Cancelar"
             >
@@ -105,109 +195,49 @@ useEffect(() => {
           </div>
         )}
 
-        <div style={styles.tasks}>
+        <div className="tasks">
           {tasks.length === 0 ? (
             <p style={{ color: "white" }}>Nenhuma tarefa</p>
           ) : (
-            tasks.map((task) => (
-              <div key={task.id} style={styles.taskBox}>
-                <span style={styles.taskText}>{task.title}</span>
-                <div style={styles.icons}>
-                  <button
-                    style={{ ...styles.iconButton, color: "yellow" }}
-                    title="Editar"
-                    onClick={() => alert(`Editar: ${task.title}`)}
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    style={{ ...styles.iconButton, color: "red" }}
-                    title="Deletar"
-                    onClick={() => alert(`Deletar: ${task.title}`)}
-                  >
-                    ❌
-                  </button>
+            tasks.map((task) => {
+              // Show warning if task is overdue
+              const isPast = task.datetime && new Date(task.datetime) < new Date();
+              return (
+                <div key={task.id} className="taskBox">
+                  <span className="taskText">
+                    {isPast && (
+                      <span title="Task atrasada" style={{ color: "#FFD600", fontSize: 18, marginRight: 6 }}>⚠️</span>
+                    )}
+                    {task.title}
+                    {task.datetime && (
+                      <span className="taskTime"> &nbsp;⏰ {formatDatetime(task.datetime)}</span>
+                    )}
+                  </span>
+                  <div className="icons">
+                    <button
+                      className="iconButton"
+                      style={{ color: "yellow" }}
+                      title="Editar"
+                      onClick={() => handleEdit(task)}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      className="iconButton"
+                      style={{ color: "red" }}
+                      title="Deletar"
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(task.id); }}
+                    >
+                      ❌
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    backgroundColor: "black",
-    minHeight: "100vh",
-    padding: 20,
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  },
-  logo: {
-    color: "white",
-    fontSize: 36,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  container: {
-    backgroundColor: "#222",
-    padding: 20,
-    borderRadius: 8,
-    maxWidth: 600,
-    margin: "0 auto",
-  },
-  addButton: {
-    backgroundColor: "green",
-    color: "white",
-    fontSize: 28,
-    border: "none",
-    borderRadius: "50%",
-    width: 40,
-    height: 40,
-    cursor: "pointer",
-    marginBottom: 20,
-  },
-  inputContainer: {
-    display: "flex",
-    gap: 10,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  input: {
-    flex: 1,
-    padding: 8,
-    fontSize: 16,
-    borderRadius: 4,
-    border: "1px solid #555",
-    outline: "none",
-  },
-  tasks: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  taskBox: {
-    backgroundColor: "#333",
-    color: "white",
-    padding: 12,
-    borderRadius: 6,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  taskText: {
-    flex: 1,
-  },
-  icons: {
-    display: "flex",
-    gap: 12,
-    marginLeft: 12,
-  },
-  iconButton: {
-    background: "none",
-    border: "none",
-    fontSize: 20,
-    cursor: "pointer",
-  },
-};
